@@ -18,7 +18,7 @@ class VideoTranslator:
         self.logger = logging.getLogger(__name__)
         self.model_size : str = model_size
         self.device : str = device.value
-        self.workdir : str = os.getcwd()
+        self.workdir : str = str(self.base_dir)
         self.debug : bool = verbose
         self.vid_width : int = 1920
         self.vid_height : int = 1080
