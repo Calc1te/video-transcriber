@@ -1,0 +1,7 @@
+*.mp4
+*.ass
+__pycache__/
+ass/
+out/
+wav/
+.DS_Store
