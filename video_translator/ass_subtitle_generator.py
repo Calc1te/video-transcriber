@@ -78,7 +78,7 @@ class AssStyle:
         )
 
 class AssGenerator:
-    def __init__(self, file_name : str, transcriptions : list[Tuple[str, str, str]] ,styles : List[AssStyle]|None = None):
+    def __init__(self, file_name : str, transcriptions : list[Tuple[str, str, str]], styles : List[AssStyle]|None = None):
         self.file_name = file_name
         self.info_header = textwrap.dedent('''\
             [Script Info]

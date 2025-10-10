@@ -1,13 +1,13 @@
 from faster_whisper import WhisperModel
 from enum import Enum
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, List
 import subprocess
 import json
 import os
 import logging
 from utils import second_to_HMS
-from ass_subtitle_generator import AssGenerator
+from ass_subtitle_generator import AssGenerator, AssStyle
 
 class Device(Enum):
     cuda = 'cuda'
@@ -85,8 +85,8 @@ class VideoTranslator:
         self.transcriptions = transcriptions
         return transcriptions
 
-    def generate_subtitle(self):
-        self.ass = AssGenerator(self.vid_name,self.transcriptions)
+    def generate_subtitle(self, styles : List[AssStyle] | None = None):
+        self.ass = AssGenerator(self.vid_name,self.transcriptions, styles)
         self.ass_path = self.ass.save(self.vid_width, self.vid_height)
 
     def compress_subtitle(self):
