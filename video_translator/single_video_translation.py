@@ -15,10 +15,11 @@ class Device(Enum):
 
 class VideoTranslator:
     def __init__(self, vid_path : str|Path , model_size : str, device : Device = Device.cpu, compute_type : str|None = None, verbose : bool = False):
+        self.env_ready : bool = False
         self.logger = logging.getLogger(__name__)
         self.model_size : str = model_size
         self.device : str = device.value
-        self.workdir : str = str(self.base_dir)
+        self.env_setup()
         self.debug : bool = verbose
         self.vid_width : int = 1920
         self.vid_height : int = 1080
@@ -30,10 +31,11 @@ class VideoTranslator:
         self.vid_path = vid_path if type(vid_path) == Path else Path(vid_path)
         self.vid_name = str(self.vid_path).split('/')[-1]
         try:
+            self.logger.info("loading whisper model...")
             self.model = WhisperModel(self.model_size, device = self.device, compute_type = self.compute_type)
         except Exception as e:
-            print(f"Error: {e}")
-        
+            self.logger.error(f"Error: {e}")
+
     def env_setup(self, dir : Path | None = None):
         self.base_dir = dir or os.getcwd()
         if dir == None:
@@ -41,21 +43,26 @@ class VideoTranslator:
         for folder in ['wav', 'ass', 'out']:
             path = os.path.join(self.base_dir, folder)
             os.makedirs(path, exist_ok=True)
+
     def get_audio_stream(self):
-        # ffmpeg -i movie.mp4 -vn -acodec pcm_s16le -ar 44100 -ac 2 movie_audio.wav
+        # ffmpeg -i movie.mp4 -vn -acodec pcm_s16le -ar 44100 -ac 1 movie_audio.wav
         input = self.vid_path
-        process = subprocess.Popen(['ffmpeg', '-i', input, '-vn', '-acodec', 'pcm_s16le', 
-                                    '-ar', '44100', '-ac', '2', f'{self.workdir}/wav/{self.vid_name}_audio.wav'], stdout=subprocess.PIPE, text=True)
-        while True:
-            output = process.stdout.readline()
-            if output == '' and process.poll() is not None:
-                break
-            if output:
-                print(output.strip())
-        ret = process.poll()
-        if ret != 0:
-            self.logger.error(f'shit happened when generating transcript, error code {ret}')
-        
+        try:
+            process = subprocess.Popen(['ffmpeg', '-i', input, '-vn', '-acodec', 'pcm_s16le', 
+                                        '-ar', '44100', '-ac', '1', f'{self.base_dir}/wav/{self.vid_name}_audio.wav'], stdout=subprocess.PIPE, text=True)
+            while True:
+                output = process.stdout.readline()
+                if output == '' and process.poll() is not None:
+                    break
+                if output:
+                    self.logger.info(output.strip())
+            ret = process.poll()
+            if ret != 0:
+                self.logger.error(f'shit happened when generating transcript, error code {ret}')
+        except FileNotFoundError as e:
+            self.logger.error(f"FFmpeg not found: {e}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error: {e}")
 
     def get_resolution(self):
         # TODO: find a way to get res when extracting audio and get rid of this
@@ -71,8 +78,9 @@ class VideoTranslator:
         stream = info["streams"][0]
         self.vid_width = stream["width"]
         self.vid_height = stream["height"]
+
     def whisper_transcription(self):
-        input_wav = f'{self.workdir}/wav/{self.vid_name}_audio.wav'
+        input_wav = f'{self.base_dir}/wav/{self.vid_name}_audio.wav'
         transcriptions: list[Tuple[str, str, str]] = []
         try:
             segments, info = self.model.transcribe(input_wav, beam_size = 5)
@@ -106,9 +114,11 @@ class VideoTranslator:
             output_vid
         ]
         subprocess.run(cmd, check=True)
+
     def singleVideoPipeline(self, translate : bool = False):
+        # TODO: find a way to implement translator
         if translate:
-            self.logger.error("Error: Author haven't find any way to translate subtitle yet!")
+            self.logger.error("Author haven't find any way to translate subtitle yet!")
             return
         self.get_audio_stream()
         self.get_resolution()
@@ -118,6 +128,7 @@ class VideoTranslator:
 
 
 if __name__=='__main__':
+    logging.basicConfig(level=logging.INFO)
     vidTr = VideoTranslator('0604.mp4','large-v3')
     vidTr.singleVideoPipeline(True)
-    vidTr.singleVideoPipeline(False)
+    # vidTr.singleVideoPipeline(False)
