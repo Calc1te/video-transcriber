@@ -104,30 +104,75 @@ class VideoTranslator:
         return transcriptions
 
     def split_transcription(self):
-        self.translation : Path = self.ass_dir / f'raw_transcription_{Path(self.vid_name).stem}.txt'
-        raw_transcription : str = '# type translation behind the "|"'
-        for transcript in self.transcriptions:
-            raw_transcription += ('\n' + transcript.text + ' | ')
-        with open(self.translation, 'w', encoding="utf-8") as f:
-            f.write(raw_transcription)
-        self.logger.info(f'raw transcription saved to {self.translation}')
+        self.translation_file = self.ass_dir / f'transcription_{Path(self.vid_name).stem}.json'
+        # 构建包含元数据的导出数据
+        export_data = {
+            "metadata": {
+                "video_path": str(self.vid_path),
+                "video_name": self.vid_name,
+                "width": self.vid_width,
+                "height": self.vid_height,
+                "model_size": self.model_size,
+                "device": self.device,
+                "compute_type": self.compute_type
+            },
+            "transcriptions": [
+                {
+                    "start": t.start,
+                    "end": t.end,
+                    "text": t.text,
+                    "translation": ""
+                }
+                for t in self.transcriptions
+            ]
+        }
+        
+        with open(self.translation_file, 'w', encoding="utf-8") as f:
+            json.dump(export_data, f, ensure_ascii=False, indent=4)
+        self.logger.info(f'Transcription and metadata saved to {self.translation_file}')
 
-    def read_translation(self):
-        translation_data = []
+    def load_from_translation_file(self, translation_file: Path) -> bool:
         try:
-            with open(self.translation, 'r', encoding='utf-8') as f:
-                translation_data = f.readlines()
-        except FileNotFoundError as e:
-            self.logger.error(f'unable to find raw translation file {self.translation}')
-        translation_data.pop(0) # remove instruction line
-        for translation in translation_data:
-            translation = translation.split('|')[1]
-        return translation_data
+            with open(translation_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
             
+            metadata = data["metadata"]
+            self.vid_path = Path(metadata["video_path"])
+            self.vid_name = metadata["video_name"]
+            self.vid_width = metadata["width"]
+            self.vid_height = metadata["height"]
+            
+            self.transcriptions = []
+            for t in data["transcriptions"]:
+                trans = Transcription(
+                    start=t["start"],
+                    end=t["end"],
+                    text=t["text"]
+                )
+                if t["translation"]:
+                    trans.text = t["translation"] + '\n' + trans.text
+                self.transcriptions.append(trans)
+            
+            self.translation_file = translation_file
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to load translation file: {e}")
+            return False
+
     def add_translation_to_subtitle(self):
-        data = self.read_translation()
-        for i, transcription in enumerate(self.transcriptions):
-            transcription.text = data[i] + '\\n'  + transcription.text
+        try:
+            with open(self.translation_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            for t, saved_t in zip(self.transcriptions, data["transcriptions"]):
+                if saved_t["translation"]:
+                    t.text = saved_t["translation"] + '\n' + t.text
+            return True
+        except FileNotFoundError:
+            self.logger.error(f'Translation file not found: {self.translation_file}')
+            return False
+        except Exception as e:
+            self.logger.error(f'Failed to read translation: {e}')
+            return False
     def generate_subtitle(self, styles : List[AssStyle] | None = None):
         self.ass = AssGenerator(self.vid_name,self.transcriptions, styles)
         self.ass_path = self.ass.save(self.vid_width, self.vid_height)
@@ -150,22 +195,22 @@ class VideoTranslator:
         ]
         subprocess.run(cmd, check=True)
 
-    def singleVideoPipeline(self, manual_translate : bool = False):
-        # TODO: find a way to implement translator
-        if manual_translate:
+    def singleVideoPipeline(self, manual_translate: bool = False, translation_file: Path | None = None):
+        if translation_file and self.load_from_translation_file(translation_file):
+            self.logger.info("Restored state from translation file")
+            self.add_translation_to_subtitle()
+            self.generate_subtitle()
+            self.compress_subtitle()
             return
+        
         self.get_audio_stream()
         self.get_resolution()
         self.whisper_transcription()
+        
+        if manual_translate:
+            self.split_transcription()
+            self.logger.info("Please translate the content in the generated file and run again with the translation file")
+            return
+        
         self.generate_subtitle()
         self.compress_subtitle()
-
-if __name__=='__main__':
-    logging.basicConfig(level=logging.INFO)
-    vidTr = VideoTranslator('0604.mp4','large-v3')
-    vidTr.get_audio_stream()
-    vidTr.get_resolution()
-    vidTr.whisper_transcription()
-    vidTr.split_transcription()
-    vidTr.get_resolution()
-    vidTr.generate_subtitle()
