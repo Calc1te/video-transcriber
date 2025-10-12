@@ -1,5 +1,7 @@
 from typing import List, Tuple
+import json
 import textwrap
+from utils import Transcription
 
 
 
@@ -78,7 +80,7 @@ class AssStyle:
         )
 
 class AssGenerator:
-    def __init__(self, file_name : str, transcriptions : list[Tuple[str, str, str]], styles : List[AssStyle]|None = None):
+    def __init__(self, file_name : str, transcriptions : list[Transcription], styles : List[AssStyle]|None = None):
         self.file_name = file_name
         self.info_header = textwrap.dedent('''\
             [Script Info]
@@ -106,7 +108,7 @@ class AssGenerator:
             \n[Events]
             Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         ''')
-        self.events = events_header + "\n".join(f'Dialogue: 0, {t[0]}, {t[1]}, {styles[0].name},,0,0,0,,{t[2]}' for t in transcriptions)
+        self.events = events_header + "\n".join(f'Dialogue: 0, {t.start}, {t.end}, {styles[0].name},,0,0,0,,{t.text}' for t in transcriptions)
 
 
     def save(self, ResX : int, ResY : int, Title = None):
@@ -118,7 +120,7 @@ class AssGenerator:
         content = "\n".join([info_text.strip(), self.styles.strip(), self.events.strip()])
 
         with open(path, "w", encoding="utf-8-sig") as f:
-            f.write(content)
+            json.dump(content, f)
 
         print(f"Subtitle saved to: {path}")
         return path

@@ -2,6 +2,7 @@ from faster_whisper import WhisperModel
 from enum import Enum
 from pathlib import Path
 from typing import Tuple, List
+from utils import Transcription
 import subprocess
 import json
 import os
@@ -12,6 +13,8 @@ from ass_subtitle_generator import AssGenerator, AssStyle
 class Device(Enum):
     cuda = 'cuda'
     cpu = 'cpu'
+
+
 
 class VideoTranslator:
     def __init__(self, vid_path : str|Path , model_size : str, device : Device = Device.cpu, compute_type : str|None = None, verbose : bool = False):
@@ -37,12 +40,15 @@ class VideoTranslator:
             self.logger.error(f"Error: {e}")
 
     def env_setup(self, dir : Path | None = None):
-        self.base_dir = dir or os.getcwd()
+        self.base_dir = dir or Path(os.getcwd())
         if dir == None:
             self.logger.warning('base directory not specified, using working directory...')
         for folder in ['wav', 'ass', 'out']:
             path = os.path.join(self.base_dir, folder)
             os.makedirs(path, exist_ok=True)
+        self.out_dir = self.base_dir/'out'
+        self.wav_dir = self.base_dir/'wav'
+        self.ass_dir = self.base_dir/'ass'
 
     def get_audio_stream(self):
         # ffmpeg -i movie.mp4 -vn -acodec pcm_s16le -ar 44100 -ac 1 movie_audio.wav
@@ -51,7 +57,7 @@ class VideoTranslator:
             process = subprocess.Popen(['ffmpeg', '-i', input, '-vn', '-acodec', 'pcm_s16le', 
                                         '-ar', '44100', '-ac', '1', f'{self.base_dir}/wav/{self.vid_name}_audio.wav'], stdout=subprocess.PIPE, text=True)
             while True:
-                output = process.stdout.readline()
+                output = process.stdout.readline() # type:ignore
                 if output == '' and process.poll() is not None:
                     break
                 if output:
@@ -65,7 +71,7 @@ class VideoTranslator:
             self.logger.error(f"Unexpected error: {e}")
 
     def get_resolution(self):
-        # TODO: find a way to get res when extracting audio and get rid of this
+        # TODO: find a way to get resolution when extracting audio and get rid of this
         cmd = [
             "ffprobe", "-v", "error",
             "-select_streams", "v:0",
@@ -81,18 +87,47 @@ class VideoTranslator:
 
     def whisper_transcription(self):
         input_wav = f'{self.base_dir}/wav/{self.vid_name}_audio.wav'
-        transcriptions: list[Tuple[str, str, str]] = []
+        transcriptions: list[Transcription] = []
         try:
             segments, info = self.model.transcribe(input_wav, beam_size = 5)
             self.logger.info("Detected language '%s' with probability %f" % (info.language, info.language_probability))
             for segment in segments:
                 self.logger.info("processing... now at '%3f'" % (segment.start))
-                transcriptions.append((second_to_HMS(segment.start), second_to_HMS(segment.end), segment.text))
+                transcriptions.append(
+                    Transcription(start=second_to_HMS(segment.start), 
+                                end = second_to_HMS(segment.end), 
+                                text = segment.text)
+                    )
         except Exception as e:
             print(f'Error: {e}')
         self.transcriptions = transcriptions
         return transcriptions
 
+    def split_transcription(self):
+        self.translation : Path = self.ass_dir / f'raw_transcription_{Path(self.vid_name).stem}.txt'
+        raw_transcription : str = '# type translation behind the "|"'
+        for transcript in self.transcriptions:
+            raw_transcription += ('\n' + transcript.text + ' | ')
+        with open(self.translation, 'w', encoding="utf-8") as f:
+            f.write(raw_transcription)
+        self.logger.info(f'raw transcription saved to {self.translation}')
+
+    def read_translation(self):
+        translation_data = []
+        try:
+            with open(self.translation, 'r', encoding='utf-8') as f:
+                translation_data = f.readlines()
+        except FileNotFoundError as e:
+            self.logger.error(f'unable to find raw translation file {self.translation}')
+        translation_data.pop(0) # remove instruction line
+        for translation in translation_data:
+            translation = translation.split('|')[1]
+        return translation_data
+            
+    def add_translation_to_subtitle(self):
+        data = self.read_translation()
+        for i, transcription in enumerate(self.transcriptions):
+            transcription.text = data[i] + '\\n'  + transcription.text
     def generate_subtitle(self, styles : List[AssStyle] | None = None):
         self.ass = AssGenerator(self.vid_name,self.transcriptions, styles)
         self.ass_path = self.ass.save(self.vid_width, self.vid_height)
@@ -115,10 +150,9 @@ class VideoTranslator:
         ]
         subprocess.run(cmd, check=True)
 
-    def singleVideoPipeline(self, translate : bool = False):
+    def singleVideoPipeline(self, manual_translate : bool = False):
         # TODO: find a way to implement translator
-        if translate:
-            self.logger.error("Author haven't find any way to translate subtitle yet!")
+        if manual_translate:
             return
         self.get_audio_stream()
         self.get_resolution()
@@ -126,9 +160,12 @@ class VideoTranslator:
         self.generate_subtitle()
         self.compress_subtitle()
 
-
 if __name__=='__main__':
     logging.basicConfig(level=logging.INFO)
     vidTr = VideoTranslator('0604.mp4','large-v3')
-    vidTr.singleVideoPipeline(True)
-    # vidTr.singleVideoPipeline(False)
+    vidTr.get_audio_stream()
+    vidTr.get_resolution()
+    vidTr.whisper_transcription()
+    vidTr.split_transcription()
+    vidTr.get_resolution()
+    vidTr.generate_subtitle()

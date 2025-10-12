@@ -1,3 +1,9 @@
+from dataclasses import dataclass
+@dataclass
+class Transcription:
+    start : str
+    end : str
+    text : str
 def second_to_HMS(seconds: float) -> str:
         h = int(seconds // 3600)
         m = int((seconds % 3600) // 60)
