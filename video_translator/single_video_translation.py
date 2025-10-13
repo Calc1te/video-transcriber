@@ -64,7 +64,7 @@ class VideoTranslator:
                     self.logger.info(output.strip())
             ret = process.poll()
             if ret != 0:
-                self.logger.error(f'shit happened when generating transcript, error code {ret}')
+                self.logger.error(f'shit happened when getting audio, error code {ret}')
         except FileNotFoundError as e:
             self.logger.error(f"FFmpeg not found: {e}")
         except Exception as e:
@@ -86,7 +86,7 @@ class VideoTranslator:
         self.vid_height = stream["height"]
 
     def whisper_transcription(self):
-        input_wav = f'{self.base_dir}/wav/{self.vid_name}_audio.wav'
+        input_wav = f'{self.wav_dir}/{self.vid_name}_audio.wav'
         transcriptions: list[Transcription] = []
         try:
             segments, info = self.model.transcribe(input_wav, beam_size = 5)
