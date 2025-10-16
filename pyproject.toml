@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "video_translator"
 version = "0.1.0"
 authors = [
-    {name = "calcite", email = "your.email@example.com"},
+    {name = "calcite", email = "calcitevalentin@outlook.com"},
 ]
 description = "A tool for translating videos with subtitles"
 readme = "README.md"

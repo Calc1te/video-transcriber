@@ -9,6 +9,7 @@ import os
 import logging
 from utils import second_to_HMS
 from ass_subtitle_generator import AssGenerator, AssStyle
+from audio_processor import detect_no_sound_period
 
 class Device(Enum):
     cuda = 'cuda'
@@ -85,7 +86,7 @@ class VideoTranslator:
         self.vid_width = stream["width"]
         self.vid_height = stream["height"]
 
-    def whisper_transcription(self):
+    def whisper_transcription(self) -> List[Transcription]:
         input_wav = f'{self.wav_dir}/{self.vid_name}_audio.wav'
         transcriptions: list[Transcription] = []
         try:
@@ -94,14 +95,25 @@ class VideoTranslator:
             for segment in segments:
                 self.logger.info("processing... now at '%3f'" % (segment.start))
                 transcriptions.append(
-                    Transcription(start=second_to_HMS(segment.start), 
-                                end = second_to_HMS(segment.end), 
+                    Transcription(start=second_to_HMS(segment.start), start_calc=segment.start,
+                                end = second_to_HMS(segment.end), end_calc=segment.end,
                                 text = segment.text)
                     )
         except Exception as e:
             print(f'Error: {e}')
         self.transcriptions = transcriptions
         return transcriptions
+    
+    def remove_silent_tail(self):
+        silent_periods = detect_no_sound_period(f'{self.wav_dir}/{self.vid_name}_audio.wav')
+        for transcription in self.transcriptions:
+            for start_silent, end_silent in silent_periods:
+                if start_silent > transcription.end_calc:
+                    break
+                if start_silent < transcription.end_calc < end_silent:
+                    transcription.end_calc = start_silent
+                    transcription.end = second_to_HMS(transcription.end_calc)
+
 
     def split_transcription(self):
         self.translation_file = self.ass_dir / f'transcription_{Path(self.vid_name).stem}.json'
@@ -146,7 +158,9 @@ class VideoTranslator:
             for t in data["transcriptions"]:
                 trans = Transcription(
                     start=t["start"],
+                    start_calc = 0, # process that need this attr is always executed before translate file is generated, so it's good to set to 0
                     end=t["end"],
+                    end_calc = 0,
                     text=t["text"]
                 )
                 if t["translation"]:
@@ -159,7 +173,7 @@ class VideoTranslator:
             self.logger.error(f"Failed to load translation file: {e}")
             return False
 
-    def add_translation_to_subtitle(self):
+    def add_translation_to_subtitle(self) -> bool:
         try:
             with open(self.translation_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
