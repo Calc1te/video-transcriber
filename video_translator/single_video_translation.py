@@ -220,6 +220,7 @@ class VideoTranslator:
         self.get_audio_stream()
         self.get_resolution()
         self.whisper_transcription()
+        self.remove_silent_tail()
         
         if manual_translate:
             self.split_transcription()
