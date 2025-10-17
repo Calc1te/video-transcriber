@@ -1,7 +1,7 @@
 from typing import List, Tuple
 import json
 import textwrap
-from utils import Transcription
+from .utils import Transcription
 
 
 

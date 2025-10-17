@@ -2,14 +2,13 @@ from faster_whisper import WhisperModel
 from enum import Enum
 from pathlib import Path
 from typing import Tuple, List
-from utils import Transcription
+from .utils import Transcription, second_to_HMS
 import subprocess
 import json
 import os
 import logging
-from utils import second_to_HMS
-from ass_subtitle_generator import AssGenerator, AssStyle
-from audio_processor import detect_no_sound_period
+from .ass_subtitle_generator import AssGenerator, AssStyle
+from .audio_processor import detect_no_sound_period
 
 class Device(Enum):
     cuda = 'cuda'
@@ -56,7 +55,7 @@ class VideoTranslator:
         input = self.vid_path
         try:
             process = subprocess.Popen(['ffmpeg', '-i', input, '-vn', '-acodec', 'pcm_s16le', 
-                                        '-ar', '44100', '-ac', '1', f'{self.base_dir}/wav/{self.vid_name}_audio.wav'], stdout=subprocess.PIPE, text=True)
+                                        '-ar', '16000', '-ac', '1', f'{self.base_dir}/wav/{self.vid_name}_audio.wav'], stdout=subprocess.PIPE, text=True)
             while True:
                 output = process.stdout.readline() # type:ignore
                 if output == '' and process.poll() is not None:
@@ -82,9 +81,10 @@ class VideoTranslator:
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
         info = json.loads(result.stdout)
-        stream = info["streams"][0]
-        self.vid_width = stream["width"]
-        self.vid_height = stream["height"]
+        if len(info["streams"]) != 0:
+            stream = info["streams"][0]
+            self.vid_width = stream["width"]
+            self.vid_height = stream["height"]
 
     def whisper_transcription(self) -> List[Transcription]:
         input_wav = f'{self.wav_dir}/{self.vid_name}_audio.wav'

@@ -1,5 +1,5 @@
 import argparse
-from single_video_translation import VideoTranslator, Device
+from .single_video_translation import VideoTranslator, Device
 
 def main():
     parser = argparse.ArgumentParser(description="Transcribe and burn subtitles.")

@@ -108,7 +108,7 @@ translator.singleVideoPipeline(translation_file="path/to/translation.json")
 
 ## 输出文件结构
 
-```
+``` plaintext
 工作目录/
 ├── wav/
 │   └── {视频名}_audio.wav          # 提取的音频
