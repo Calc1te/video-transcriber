@@ -1,0 +1,261 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 40px 20px;
+    text-align: center;
+}
+
+header h1 {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+}
+
+header p {
+    font-size: 1.1em;
+    opacity: 0.9;
+}
+
+main {
+    padding: 40px;
+}
+
+section {
+    margin-bottom: 40px;
+}
+
+section h2 {
+    font-size: 1.5em;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+/* 上传框样式 */
+.upload-box {
+    border: 3px dashed #667eea;
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #f8f9ff;
+}
+
+.upload-box:hover {
+    border-color: #764ba2;
+    background: #f0f2ff;
+    transform: translateY(-2px);
+}
+
+.upload-box p {
+    margin: 10px 0;
+    color: #666;
+}
+
+.upload-box .file-info {
+    font-size: 0.9em;
+    color: #999;
+    margin-top: 10px;
+}
+
+/* 表单组 */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-group select,
+.form-group input[type="checkbox"] {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1em;
+}
+
+.form-group select {
+    width: 100%;
+}
+
+.form-group input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+.form-group .info {
+    margin-top: 5px;
+    font-size: 0.9em;
+    color: #999;
+}
+
+/* 按钮 */
+.btn {
+    padding: 12px 30px;
+    border: none;
+    border-radius: 4px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    width: 100%;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-secondary {
+    background: #f0f0f0;
+    color: #333;
+    margin-right: 10px;
+    margin-top: 10px;
+}
+
+.btn-secondary:hover {
+    background: #e0e0e0;
+}
+
+/* 进度条 */
+.progress-container {
+    margin-top: 20px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 30px;
+    background: #f0f0f0;
+    border-radius: 15px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    transition: width 0.3s ease;
+    width: 0%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+#progressText {
+    text-align: center;
+    font-weight: bold;
+    color: #667eea;
+}
+
+.status-message {
+    text-align: center;
+    color: #666;
+    margin-top: 10px;
+}
+
+/* 成功消息 */
+.success-message {
+    background: #f0f9ff;
+    border: 2px solid #667eea;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+}
+
+.success-message p {
+    margin-bottom: 20px;
+    font-size: 1.1em;
+    color: #333;
+}
+
+/* 错误消息 */
+.error-message {
+    background: #fff5f5;
+    border: 2px solid #fc8181;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+}
+
+.error-message p {
+    margin-bottom: 20px;
+    font-size: 1.1em;
+    color: #c53030;
+}
+
+/* 隐藏元素 */
+.hidden {
+    display: none !important;
+}
+
+footer {
+    background: #f8f9ff;
+    padding: 20px;
+    text-align: center;
+    color: #999;
+    font-size: 0.9em;
+    border-top: 1px solid #e0e0e0;
+}
+
+/* 响应式设计 */
+@media (max-width: 600px) {
+    header h1 {
+        font-size: 1.8em;
+    }
+
+    main {
+        padding: 20px;
+    }
+
+    .upload-box {
+        padding: 30px 15px;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        font-size: 0.9em;
+    }
+
+    .btn-secondary {
+        width: 100%;
+        margin: 10px 0;
+    }
+}

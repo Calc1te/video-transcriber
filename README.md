@@ -18,6 +18,10 @@ A video translator (that cannot translate video yet)
 
 ## 安装
 
+点击右上角Code -> Download Zip
+
+或
+
 ```bash
 
 # 从源码安装
@@ -25,6 +29,53 @@ git clone https://github.com/yourusername/video_translator.git
 cd video_translator
 pip install -e .
 ```
+
+
+
+## 使用方式
+
+### 方式 1: Web 界面
+
+首先你得有个python
+
+[windows download](https://www.python.org/downloads/windows/)
+
+[macOS download](https://www.python.org/downloads/macos/)
+
+#### Windows 用户
+```cmd
+双击运行 run_web.bat 文件
+```
+
+#### macOS/Linux 用户
+```bash
+bash run_web.sh
+```
+
+#### 或使用 Python 命令
+```bash
+python -m video_translator.run_web_server
+```
+
+然后打开浏览器访问：`http://127.0.0.1:5000`
+
+
+### 方式 2: 命令行工具
+
+```bash
+video-translator translate your_video.mp4 --model-size base --device cuda
+```
+
+### 方式 3: Python 库
+
+```python
+from video_translator import VideoTranslator, Device
+
+translator = VideoTranslator('video.mp4', 'large-v3', device=Device.cpu)
+translator.singleVideoPipeline()
+```
+
+---
 
 ## 快速开始
 
@@ -59,12 +110,6 @@ compress_subtitle()
 # 或者直接使用打包好的方法
 vidTr = VideoTranslator('input.mp4','large-v3')
 vidTr.singleVideoPipeline(translation = False)
-```
-
-## 命令行使用
-
-```bash
-video-translator translate your_video.mp4 --model-size base --device cuda
 ```
 
 ## 主要组件

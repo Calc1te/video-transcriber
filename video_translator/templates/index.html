@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频翻译工具</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎬 视频翻译工具</h1>
+            <p>自动生成转录并压制字幕</p>
+        </header>
+
+        <main>
+            <!-- 上传部分 -->
+            <section class="upload-section">
+                <h2>第一步：上传视频</h2>
+                <div class="upload-box" id="uploadBox">
+                    <input type="file" id="fileInput" accept="video/*" hidden>
+                    <p>拖拽视频文件到此处</p>
+                    <p>或点击选择</p>
+                    <p class="file-info">支持格式：MP4、AVI、MOV、MKV、FLV、WMV</p>
+                </div>
+                <div id="uploadProgress" class="progress-container" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="uploadProgressFill"></div>
+                    </div>
+                    <p id="uploadStatus">上传中...</p>
+                </div>
+            </section>
+
+            <!-- 配置部分 -->
+            <section class="config-section" style="display: none;" id="configSection">
+                <h2>第二步：配置参数</h2>
+                <div class="form-group">
+                    <label for="modelSelect">模型大小：</label>
+                    <select id="modelSelect">
+                        <option value="tiny">Tiny (快速)</option>
+                        <option value="base">Base</option>
+                        <option value="small">Small</option>
+                        <option value="medium">Medium</option>
+                        <option value="large" selected>Large (推荐)</option>
+                        <option value="large-v2">Large-v2</option>
+                        <option value="large-v3">Large-v3 (最新)</option>
+                    </select>
+                    <p class="info">模型越大，准确度越高，但处理时间越长</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="deviceSelect">设备：</label>
+                    <select id="deviceSelect">
+                        <option value="cpu">CPU (通用)</option>
+                        <option value="cuda">CUDA (GPU 加速)</option>
+                    </select>
+                    <p class="info">如果有 NVIDIA GPU，选择 CUDA 可加快处理速度</p>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="manualTranslate">
+                        需要人工翻译（生成翻译文件后暂停）
+                    </label>
+                </div>
+
+                <button id="startBtn" class="btn btn-primary">开始处理</button>
+            </section>
+
+            <!-- 处理进度部分 -->
+            <section class="progress-section" style="display: none;" id="progressSection">
+                <h2>处理中...</h2>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="processProgressFill"></div>
+                    </div>
+                    <p id="progressText">0%</p>
+                </div>
+                <p id="statusMessage" class="status-message">初始化中...</p>
+            </section>
+
+            <!-- 翻译上传部分 -->
+            <section class="translation-section" style="display: none;" id="translationSection">
+                <h2>第三步：上传翻译文件</h2>
+                <p>请翻译生成的转录文件，然后上传翻译后的 JSON 文件</p>
+                <div class="upload-box" id="translationUploadBox">
+                    <input type="file" id="translationFileInput" accept=".json" hidden>
+                    <p>拖拽翻译文件到此处</p>
+                    <p>或点击选择</p>
+                </div>
+                <div id="translationUploadProgress" class="progress-container" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="translationUploadProgressFill"></div>
+                    </div>
+                    <p id="translationUploadStatus">上传中...</p>
+                </div>
+            </section>
+
+            <!-- 完成部分 -->
+            <section class="complete-section" style="display: none;" id="completeSection">
+                <h2>✓ 处理完成！</h2>
+                <div class="success-message">
+                    <p id="completeMessage">视频处理完成！</p>
+                    <button id="downloadBtn" class="btn btn-primary">下载结果</button>
+                    <button id="newVideoBtn" class="btn btn-secondary">处理新视频</button>
+                </div>
+            </section>
+
+            <!-- 错误部分 -->
+            <section class="error-section" style="display: none;" id="errorSection">
+                <h2>✗ 处理失败</h2>
+                <div class="error-message">
+                    <p id="errorMessage">处理过程中出现错误</p>
+                    <button id="retryBtn" class="btn btn-secondary">重试</button>
+                    <button id="newVideoBtn2" class="btn btn-secondary">处理新视频</button>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>视频翻译工具 v0.1.0 | 基于 Faster-Whisper 和 FFmpeg</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
