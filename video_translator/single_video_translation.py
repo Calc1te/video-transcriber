@@ -7,6 +7,7 @@ import subprocess
 import json
 import os
 import logging
+import numpy as np
 from .ass_subtitle_generator import AssGenerator, AssStyle
 from .audio_processor import detect_no_sound_period
 
@@ -55,7 +56,7 @@ class VideoTranslator:
         input = self.vid_path
         try:
             process = subprocess.Popen(['ffmpeg', '-i', input, '-vn', '-acodec', 'pcm_s16le', 
-                                        '-ar', '16000', '-ac', '1', f'{self.base_dir}/wav/{self.vid_name}_audio.wav'], stdout=subprocess.PIPE, text=True)
+                                        '-ar', '44100', '-ac', '1', f'{self.base_dir}/wav/{self.vid_name}_audio.wav'], stdout=subprocess.PIPE, text=True)
             while True:
                 output = process.stdout.readline() # type:ignore
                 if output == '' and process.poll() is not None:
@@ -93,7 +94,7 @@ class VideoTranslator:
             segments, info = self.model.transcribe(input_wav, beam_size = 5)
             self.logger.info("Detected language '%s' with probability %f" % (info.language, info.language_probability))
             for segment in segments:
-                self.logger.info("processing... now at '%3f'" % (segment.start))
+                self.logger.info("processing... now at '%s'" % (segment.text))
                 transcriptions.append(
                     Transcription(start=second_to_HMS(segment.start), start_calc=segment.start,
                                 end = second_to_HMS(segment.end), end_calc=segment.end,
@@ -229,3 +230,9 @@ class VideoTranslator:
         
         self.generate_subtitle()
         self.compress_subtitle()
+
+if __name__ == '__main__':
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    vidTr = VideoTranslator('./murimuri08.mp4', 'large-v3')
+    vidTr.singleVideoPipeline()
