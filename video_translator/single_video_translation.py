@@ -194,8 +194,8 @@ class VideoTranslator:
 
     def compress_subtitle(self):
         # ffmpeg -i input.mp4 -vf "ass=subtitle.ass" -c:a copy output.mp4
-        input_vid = self.vid_path
-        ass_path = self.ass_path
+        input_vid = str(self.vid_path)
+        ass_path = str(self.ass_path.resolve())
         output_vid = f'out/w_sub_{self.vid_name}'
 
         if not os.path.exists(ass_path):
@@ -215,7 +215,7 @@ class VideoTranslator:
             self.logger.info("Restored state from translation file")
             self.add_translation_to_subtitle()
             self.generate_subtitle()
-            self.compress_subtitle()
+            # self.compress_subtitle()
             return
         
         self.get_audio_stream()

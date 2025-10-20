@@ -1,5 +1,5 @@
 from typing import List, Tuple
-import json
+from pathlib import Path
 import textwrap
 from .utils import Transcription
 
@@ -112,7 +112,7 @@ class AssGenerator:
 
 
     def save(self, ResX : int, ResY : int, Title = None):
-        path = 'ass/' + self.file_name + '.ass'
+        path = Path('ass/' + self.file_name + '.ass')
         _Title = f"{self.file_name} by Calc1te's whisper ass generator" if Title is None else Title
         
         info_text = self.info_header.format(_Title = _Title, _VidResX = ResX, _VidResY = ResY)
@@ -120,7 +120,7 @@ class AssGenerator:
         content = "\n".join([info_text.strip(), self.styles.strip(), self.events.strip()])
 
         with open(path, "w", encoding="utf-8-sig") as f:
-            json.dump(content, f)
+            f.write(content)
 
         print(f"Subtitle saved to: {path}")
         return path
