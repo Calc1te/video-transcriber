@@ -1,5 +1,6 @@
 let currentTaskId = null;
 let currentFilePath = null;
+let currentOutputFile = null;
 let pollInterval = null;
 
 const uploadBox = document.getElementById('uploadBox');
@@ -11,6 +12,7 @@ const completeSection = document.getElementById('completeSection');
 const errorSection = document.getElementById('errorSection');
 const startBtn = document.getElementById('startBtn');
 const downloadBtn = document.getElementById('downloadBtn');
+const downloadSubtitleBtn = document.getElementById('downloadSubtitleBtn');
 const newVideoBtn = document.getElementById('newVideoBtn');
 const newVideoBtn2 = document.getElementById('newVideoBtn2');
 const retryBtn = document.getElementById('retryBtn');
@@ -23,6 +25,7 @@ function initEventListeners() {
     
     startBtn.addEventListener('click', startProcessing);
     downloadBtn.addEventListener('click', downloadResult);
+    downloadSubtitleBtn.addEventListener('click', downloadSubtitle);
     newVideoBtn.addEventListener('click', resetUI);
     newVideoBtn2.addEventListener('click', resetUI);
     retryBtn.addEventListener('click', () => location.reload());
@@ -197,9 +200,11 @@ function updateProgress(task) {
 function showComplete(task) {
     progressSection.style.display = 'none';
     completeSection.style.display = 'block';
+    currentOutputFile = task.output_file;
     
     const completeMessage = document.getElementById('completeMessage');
-    completeMessage.textContent = '视频处理完成！\n字幕文件已压制到视频中。';
+    const subtitlePath = task.subtitle_file ? `\n字幕已保存到：${task.subtitle_file}` : '';
+    completeMessage.textContent = `视频处理完成！\n字幕文件已压制到视频中。${subtitlePath}`;
 }
 
 // 显示翻译等待状态
@@ -254,8 +259,16 @@ function showError(errorMessage) {
 
 // 下载结果
 function downloadResult() {
-    // 这里应该获取实际的输出文件路径
-    alert('结果已生成。请在输出文件夹中查看。');
+    if (!currentOutputFile) {
+        alert('没有找到输出文件路径。');
+        return;
+    }
+
+    window.location.href = `/api/download-task/${currentTaskId}/video`;
+}
+
+function downloadSubtitle() {
+    window.location.href = `/api/download-task/${currentTaskId}/subtitle`;
 }
 
 // 重置 UI

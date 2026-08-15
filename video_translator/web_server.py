@@ -19,8 +19,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__, template_folder='templates', static_folder='static')
 
 # 配置
-UPLOAD_FOLDER = Path('uploads')
-OUTPUT_FOLDER = Path('outputs')
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+UPLOAD_FOLDER = PROJECT_ROOT / 'uploads'
+OUTPUT_FOLDER = PROJECT_ROOT / 'outputs'
 ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv', 'flv', 'wmv'}
 MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024  # 5GB
 
@@ -45,21 +46,21 @@ def process_video_task(task_id, video_path, model_size, device, manual_translate
         tasks[task_id]['status'] = 'processing'
         tasks[task_id]['progress'] = 10
         
+        # 设置输出目录
+        output_dir = (OUTPUT_FOLDER / Path(video_path).stem).resolve()
+        output_dir.mkdir(exist_ok=True)
+
         # 创建转录器实例
         translator = VideoTranslator(
             video_path,
             model_size=model_size,
             device=Device(device),
-            verbose=True
+            verbose=True,
+            work_dir=output_dir
         )
         
         tasks[task_id]['progress'] = 20
         tasks[task_id]['message'] = '初始化环境...'
-        
-        # 设置输出目录
-        output_dir = OUTPUT_FOLDER / Path(video_path).stem
-        output_dir.mkdir(exist_ok=True)
-        translator.env_setup(output_dir)
         
         tasks[task_id]['progress'] = 30
         tasks[task_id]['message'] = '提取音频...'
@@ -84,12 +85,13 @@ def process_video_task(task_id, video_path, model_size, device, manual_translate
             tasks[task_id]['progress'] = 80
             tasks[task_id]['message'] = '生成字幕...'
             translator.generate_subtitle()
+            tasks[task_id]['subtitle_file'] = str(translator.ass_path)
             
             tasks[task_id]['progress'] = 90
             tasks[task_id]['message'] = '压制字幕到视频...'
             translator.compress_subtitle()
             
-            tasks[task_id]['output_file'] = str(translator.ass_path)
+            tasks[task_id]['output_file'] = str(translator.output_path)
             tasks[task_id]['status'] = 'completed'
             tasks[task_id]['progress'] = 100
             tasks[task_id]['message'] = '完成！'
@@ -123,7 +125,7 @@ def upload_video():
         
         # 保存文件
         filename = secure_filename(file.filename)
-        filepath = UPLOAD_FOLDER / filename
+        filepath = (UPLOAD_FOLDER / filename).resolve()
         file.save(filepath)
         
         return jsonify({
@@ -194,6 +196,7 @@ def get_task_status(task_id):
             'message': task.get('message', ''),
             'error': task.get('error'),
             'translation_file': task.get('translation_file'),
+            'subtitle_file': task.get('subtitle_file'),
             'output_file': task.get('output_file')
         }), 200
     
@@ -222,7 +225,8 @@ def upload_translation(task_id):
         
         # 保存翻译文件
         task = tasks[task_id]
-        translation_path = Path(task['filepath']).parent / f'translation_{task_id}.json'
+        translation_path = OUTPUT_FOLDER / Path(task['filepath']).stem / f'translation_{task_id}.json'
+        translation_path.parent.mkdir(parents=True, exist_ok=True)
         file.seek(0)
         file.save(translation_path)
         
@@ -253,14 +257,14 @@ def continue_with_translation(task_id, translation_path):
         task['progress'] = 50
         task['message'] = '加载翻译...'
         
+        output_dir = (OUTPUT_FOLDER / Path(task['filepath']).stem).resolve()
+        output_dir.mkdir(exist_ok=True)
         translator = VideoTranslator(
             task['filepath'],
             model_size=task['model_size'],
-            device=Device(task['device'])
+            device=Device(task['device']),
+            work_dir=output_dir
         )
-        
-        output_dir = OUTPUT_FOLDER / Path(task['filepath']).stem
-        translator.env_setup(output_dir)
         
         task['progress'] = 60
         task['message'] = '应用翻译...'
@@ -268,12 +272,13 @@ def continue_with_translation(task_id, translation_path):
             task['progress'] = 80
             task['message'] = '生成字幕...'
             translator.generate_subtitle()
+            task['subtitle_file'] = str(translator.ass_path)
             
             task['progress'] = 90
             task['message'] = '压制字幕到视频...'
             translator.compress_subtitle()
             
-            task['output_file'] = str(translator.ass_path)
+            task['output_file'] = str(translator.output_path)
             task['status'] = 'completed'
             task['progress'] = 100
             task['message'] = '完成！'
@@ -298,6 +303,35 @@ def download_file(filepath):
     
     except Exception as e:
         logger.error(f"Download error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/download-task/<task_id>/<file_type>', methods=['GET'])
+def download_task_file(task_id, file_type):
+    """按任务下载生成文件，避免把本机绝对路径放进 URL。"""
+    try:
+        if task_id not in tasks:
+            return jsonify({'error': '任务不存在'}), 404
+
+        file_key = {
+            'video': 'output_file',
+            'subtitle': 'subtitle_file',
+            'translation': 'translation_file'
+        }.get(file_type)
+        if file_key is None:
+            return jsonify({'error': '不支持的下载类型'}), 400
+
+        file_value = tasks[task_id].get(file_key)
+        if not file_value:
+            return jsonify({'error': '文件尚未生成'}), 404
+
+        file_path = Path(file_value).resolve()
+        if not file_path.exists():
+            return jsonify({'error': '文件不存在'}), 404
+
+        return send_file(file_path, as_attachment=True)
+
+    except Exception as e:
+        logger.error(f"Task download error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/models', methods=['GET'])

@@ -8,7 +8,7 @@ import json
 import os
 import logging
 import numpy as np
-from .ass_subtitle_generator import AssGenerator, AssStyle
+from .ass_subtitle_generator import AssGenerator, AssStyle, repair_ass_file
 from .audio_processor import detect_no_sound_period
 
 class Device(Enum):
@@ -18,22 +18,22 @@ class Device(Enum):
 
 
 class VideoTranslator:
-    def __init__(self, vid_path : str|Path , model_size : str, device : Device = Device.cpu, compute_type : str|None = None, verbose : bool = False):
+    def __init__(self, vid_path : str|Path , model_size : str, device : Device = Device.cpu, compute_type : str|None = None, verbose : bool = False, work_dir: str | Path | None = None):
         self.env_ready : bool = False
         self.logger = logging.getLogger(__name__)
         self.model_size : str = model_size
         self.device : str = device.value
-        self.env_setup()
         self.debug : bool = verbose
         self.vid_width : int = 1920
         self.vid_height : int = 1080
+        self.vid_path = vid_path if type(vid_path) == Path else Path(vid_path)
+        self.vid_name = str(self.vid_path).split('/')[-1]
+        self.env_setup(Path(work_dir) if work_dir is not None else None)
         if compute_type is not None:
             self.compute_type = compute_type
         else:
             self.compute_type = 'float16' if self.device == 'cuda' else 'int8'
             self.logger.warning(f'compute not specified, using {self.compute_type} as default')
-        self.vid_path = vid_path if type(vid_path) == Path else Path(vid_path)
-        self.vid_name = str(self.vid_path).split('/')[-1]
         try:
             self.logger.info("loading whisper model...")
             self.model = WhisperModel(self.model_size, device = self.device, compute_type = self.compute_type)
@@ -41,15 +41,14 @@ class VideoTranslator:
             self.logger.error(f"Error: {e}")
 
     def env_setup(self, dir : Path | None = None):
-        self.base_dir = dir or Path(os.getcwd())
+        self.base_dir = (dir or Path(os.getcwd())).resolve()
         if dir == None:
             self.logger.warning('base directory not specified, using working directory...')
-        for folder in ['wav', 'ass', 'out']:
-            path = os.path.join(self.base_dir, folder)
-            os.makedirs(path, exist_ok=True)
         self.out_dir = self.base_dir/'out'
         self.wav_dir = self.base_dir/'wav'
         self.ass_dir = self.base_dir/'ass'
+        for folder in [self.wav_dir, self.ass_dir, self.out_dir]:
+            folder.mkdir(parents=True, exist_ok=True)
 
     def get_audio_stream(self):
         # ffmpeg -i movie.mp4 -vn -acodec pcm_s16le -ar 44100 -ac 1 movie_audio.wav
@@ -190,16 +189,19 @@ class VideoTranslator:
             return False
     def generate_subtitle(self, styles : List[AssStyle] | None = None):
         self.ass = AssGenerator(self.vid_name,self.transcriptions, styles)
-        self.ass_path = self.ass.save(self.vid_width, self.vid_height)
+        self.ass_path = self.ass.save(self.vid_width, self.vid_height, output_dir=self.ass_dir)
 
     def compress_subtitle(self):
         # ffmpeg -i input.mp4 -vf "ass=subtitle.ass" -c:a copy output.mp4
         input_vid = str(self.vid_path)
         ass_path = str(self.ass_path.resolve())
-        output_vid = f'out/w_sub_{self.vid_name}'
+        self.output_path = self.out_dir / f'w_sub_{self.vid_name}'
+        output_vid = str(self.output_path)
 
         if not os.path.exists(ass_path):
             raise FileNotFoundError(ass_path)
+        if repair_ass_file(ass_path):
+            self.logger.info("Repaired JSON-encoded ASS subtitle file before burning")
         import shlex
         cmd = [
             "ffmpeg",
@@ -234,5 +236,5 @@ class VideoTranslator:
 if __name__ == '__main__':
     import logging
     logging.basicConfig(level=logging.INFO)
-    vidTr = VideoTranslator('./murimuri08.mp4', 'large-v3')
+    vidTr = VideoTranslator('/home/calcite/demonstration.mov', 'large-v3')
     vidTr.singleVideoPipeline()

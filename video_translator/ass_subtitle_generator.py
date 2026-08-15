@@ -1,8 +1,50 @@
 from typing import List, Tuple
 from pathlib import Path
 import textwrap
+import json
+import re
 from .utils import Transcription
 
+
+UNICODE_ESCAPE_RE = re.compile(r"\\(?:u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})")
+
+
+def restore_raw_unicode_escapes(text: str) -> str:
+    """Restore literal JSON-style unicode escapes without touching normal CJK text."""
+    if not UNICODE_ESCAPE_RE.search(text):
+        return text
+
+    def replace(match: re.Match[str]) -> str:
+        escaped = match.group(0)
+        codepoint = int(escaped[2:], 16)
+        return chr(codepoint)
+
+    return UNICODE_ESCAPE_RE.sub(replace, text)
+
+
+def restore_json_encoded_ass(content: str) -> str:
+    stripped = content.lstrip("\ufeff")
+    if not (stripped.startswith('"') and stripped.endswith('"')):
+        return restore_raw_unicode_escapes(content)
+
+    try:
+        decoded = json.loads(stripped)
+    except json.JSONDecodeError:
+        return restore_raw_unicode_escapes(content)
+
+    if isinstance(decoded, str):
+        return restore_raw_unicode_escapes(decoded)
+    return restore_raw_unicode_escapes(content)
+
+
+def repair_ass_file(path: str | Path) -> bool:
+    ass_path = Path(path)
+    content = ass_path.read_text(encoding="utf-8-sig")
+    repaired = restore_json_encoded_ass(content)
+    if repaired == content:
+        return False
+    ass_path.write_text(repaired, encoding="utf-8-sig")
+    return True
 
 
 class AssStyle:
@@ -10,7 +52,7 @@ class AssStyle:
         self,
         name: str = 'default',
         font: str = "Arial",
-        font_size: int = 48,
+        font_size: int = 80,
         primary_color: Tuple[int, int, int, int] = (0, 255, 255, 255),
         secondary_color: Tuple[int, int, int, int] = (0, 0, 0, 255),
         outline_color: Tuple[int, int, int, int] = (0, 0, 0, 0),
@@ -96,7 +138,7 @@ class AssGenerator:
         ''')
         styles_header = textwrap.dedent('''\
             \n[V4+ Styles]
-            Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
         ''')
         if styles is None:
             default = AssStyle()
@@ -106,13 +148,18 @@ class AssGenerator:
 
         events_header = textwrap.dedent('''\
             \n[Events]
-            Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         ''')
-        self.events = events_header + "\n".join(f'Dialogue: 0, {t.start}, {t.end}, {styles[0].name},,0,0,0,,{t.text}' for t in transcriptions)
+        self.events = events_header + "\n".join(
+            f'Dialogue: 0, {t.start}, {t.end}, {styles[0].name},,0,0,0,,{restore_raw_unicode_escapes(t.text)}'
+            for t in transcriptions
+        )
 
 
-    def save(self, ResX : int, ResY : int, Title = None):
-        path = Path('ass/' + self.file_name + '.ass')
+    def save(self, ResX : int, ResY : int, Title = None, output_dir: str | Path | None = None):
+        subtitle_dir = Path(output_dir) if output_dir is not None else Path('ass')
+        subtitle_dir.mkdir(parents=True, exist_ok=True)
+        path = subtitle_dir / f'{self.file_name}.ass'
         _Title = f"{self.file_name} by Calc1te's whisper ass generator" if Title is None else Title
         
         info_text = self.info_header.format(_Title = _Title, _VidResX = ResX, _VidResY = ResY)
