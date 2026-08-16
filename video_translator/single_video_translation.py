@@ -54,7 +54,7 @@ class VideoTranslator:
         # ffmpeg -i movie.mp4 -vn -acodec pcm_s16le -ar 44100 -ac 1 movie_audio.wav
         input = self.vid_path
         try:
-            process = subprocess.Popen(['ffmpeg', '-i', input, '-vn', '-acodec', 'pcm_s16le', 
+            process = subprocess.Popen(['ffmpeg', '-y', '-i', input, '-vn', '-acodec', 'pcm_s16le', 
                                         '-ar', '44100', '-ac', '1', f'{self.base_dir}/wav/{self.vid_name}_audio.wav'], stdout=subprocess.PIPE, text=True)
             while True:
                 output = process.stdout.readline() # type:ignore
@@ -205,12 +205,15 @@ class VideoTranslator:
         import shlex
         cmd = [
             "ffmpeg",
+            "-y",
             "-i", input_vid,
             "-vf", f"ass={shlex.quote(ass_path)}",
             "-c:a", "copy",
             output_vid
         ]
-        subprocess.run(cmd, check=True)
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip() or result.stdout.strip())
 
     def singleVideoPipeline(self, manual_translate: bool = False, translation_file: Path | None = None):
         if translation_file and self.load_from_translation_file(translation_file):
