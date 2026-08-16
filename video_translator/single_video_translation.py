@@ -211,6 +211,7 @@ class VideoTranslator:
             "-c:a", "copy",
             output_vid
         ]
+        self.logger.info("Running ffmpeg subtitle burn command: %s", cmd)
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             raise RuntimeError(result.stderr.strip() or result.stdout.strip())
